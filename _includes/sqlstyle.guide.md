@@ -2,24 +2,19 @@
 
 ## Overview
 
-You can use this set of guidelines, [fork them][fork] or make your own - the
-key here is that you pick a style and stick to it. To suggest changes
-or fix bugs please open an [issue][issue] or [pull request][pull] on GitHub.
+This is a general style guide for writing SQL queries for Yelp's SQL Vault. This
+SQL repository is maintained by the Data Science team. This guide is an attempt
+help standardized any shared SQL code that produced and reused across Yelp's data
+teams.
 
-These guidelines are designed to be compatible with Joe Celko's [SQL Programming
-Style][celko] book to make adoption for teams who have already read that book
-easier. This guide is a little more opinionated in some areas and in others a
-little more relaxed. It is certainly more succinct where [Celko's book][celko]
-contains anecdotes and reasoning behind each rule as thoughtful prose.
+While this style guide may deviate from SQL styles that you are used to or that you
+may prefer, we ask that you please adhere to this guide whenever possible (within 
+reason). We believe it is more important that have a standard, shared style than
+to find one that everyone likes (which is probably impossible anyway).
 
-It is easy to include this guide in [Markdown format][dl-md] as a part of a
-project's code base or reference it here for anyone on the project to freely
-read—much harder with a physical book.
-
-SQL style guide by [Simon Holywell][simon] is licensed under a [Creative Commons
-Attribution-ShareAlike 4.0 International License][licence].
-Based on a work at [http://www.sqlstyle.guide][sqlstyleguide].
-
+Original SQL style guide by Simon Holywell is licensed under a Creative Commons
+Attribution-ShareAlike 4.0 International License. Based on a work at 
+http://www.sqlstyle.guide.
 ## General
 
 ### Do
@@ -102,22 +97,44 @@ SELECT first_name
 ### Aliasing or correlations
 
 * Should relate in some way to the object or expression they are aliasing.
-* As a rule of thumb the correlation name should be the first letter of each word
-  in the object's name.
-* If there is already a correlation with the same name then append a number.
+* If possible, avoid using an alias for shorter names and words. It is usually
+  not necessary and often reduces readability.
+* It is recommended to avoid using using correlation names as they reduce readability
+  particularly when used in longer queries.
 * Always include the `AS` keyword—makes it easier to read as it is explicit.
+* Explicit use of table and column names should be used when possible to 
+  disambiguate the source of columns. This also avoids "Ambiguous column name" errors.
 * For computed data (`SUM()` or `AVG()`) use the name you would give it were it
   a column defined in the schema.
 
 ```sql
-SELECT first_name AS fn
-  FROM staff AS s1
-  JOIN students AS s2
+/* Good */
+SELECT students.first_name
+  FROM staff_registery AS staff
+ INNER JOIN student_records AS students
+    ON students.mentor_id = staff.staff_num;
+
+/* Okay */
+SELECT sr2.first_name AS fname
+  FROM staff_registery AS sr1
+ INNER JOIN student_records AS sr2
+    ON sr2.mentor_id = sr1.staff_num;
+
+/* Bad */
+SELECT first_name fn
+  FROM staff_registery s1
+ INNER JOIN student_records s2
     ON s2.mentor_id = s1.staff_num;
 ```
+
 ```sql
-SELECT SUM(s.monitor_tally) AS monitor_total
-  FROM staff AS s;
+/* Good */
+SELECT SUM(staff.monitor_tally) AS monitor_total
+  FROM staff_registery AS staff;
+
+/* Bad */
+SELECT SUM(s.monitor_tally) AS total
+  FROM staff_registery AS s;
 ```
 
 ### Stored procedures
@@ -157,12 +174,6 @@ available (prefer `ABSOLUTE` to `ABS`).
 Do not use database server specific keywords where an ANSI SQL keyword already
 exists performing the same function. This helps to make code more portable.
 
-```sql
-SELECT model_num
-  FROM phones AS p
- WHERE p.release_date > '2014-09-30';
-```
-
 ### White space
 
 To make the code easier to read it is important that the correct complement of
@@ -171,28 +182,53 @@ spacing is used. Do not crowd code or remove natural language spaces.
 #### Spaces
 
 Spaces should be used to line up the code so that the root keywords all end on
-the same character boundary. This forms a river down the middle making it easy for
-the readers eye to scan over the code and separate the keywords from the
+the same character boundary. So for clauses that have multiple key words (e.g. LEFT JOIN,
+GROUP BY) align the first word of the clause. This forms a river down the middle making 
+it easy for the readers eye to scan over the code and separate the keywords from the
 implementation detail. Rivers are [bad in typography][rivers], but helpful here.
 
 ```sql
-(SELECT f.species_name,
-        AVG(f.height) AS average_height, AVG(f.diameter) AS average_diameter
-   FROM flora AS f
-  WHERE f.species_name = 'Banksia'
-     OR f.species_name = 'Sheoak'
-     OR f.species_name = 'Wattle'
-  GROUP BY f.species_name, f.observation_date)
+/* Good */
+(SELECT flora.species_name,
+        AVG(flora.height) AS average_height,
+        AVG(flora.diameter) AS average_diameter
+   FROM flora
+  WHERE flora.species_name = 'Banksia'
+     OR flora.species_name = 'Sheoak'
+     OR flora.species_name = 'Wattle'
+  GROUP BY flora.species_name, flora.observation_date)
 
   UNION ALL
 
-(SELECT b.species_name,
-        AVG(b.height) AS average_height, AVG(b.diameter) AS average_diameter
+(SELECT garden_flora.species_name,
+        AVG(garden_flora.height) AS average_height,
+        AVG(garden_flora.diameter) AS average_diameter
+   FROM botanic_garden_flora AS garden_flora
+  WHERE garden_flora.species_name = 'Banksia'
+     OR garden_flora.species_name = 'Sheoak'
+     OR garden_flora.species_name = 'Wattle'
+  GROUP BY garden_flora.species_name, garden_flora.observation_date);
+
+/* Bad */
+(SELECT 
+    f.species_name,
+    AVG(f.height) AS average_height, AVG(f.diameter) AS average_diameter
+   FROM flora AS f
+   WHERE f.species_name = 'Banksia'
+     OR f.species_name = 'Sheoak'
+     OR f.species_name = 'Wattle'
+   GROUP BY f.species_name, f.observation_date)
+
+UNION ALL
+
+(SELECT 
+    b.species_name,
+    AVG(b.height) AS average_height, AVG(b.diameter) AS average_diameter
    FROM botanic_garden_flora AS b
-  WHERE b.species_name = 'Banksia'
+   WHERE b.species_name = 'Banksia'
      OR b.species_name = 'Sheoak'
      OR b.species_name = 'Wattle'
-  GROUP BY b.species_name, b.observation_date);
+   GROUP BY b.species_name, b.observation_date);
 ```
 
 Notice that `SELECT`, `FROM`, etc. are all right aligned while the actual column
@@ -206,10 +242,10 @@ Although not exhaustive always include spaces:
   comma or semicolon.
 
 ```sql
-SELECT a.title, a.release_date, a.recording_date
-  FROM albums AS a
- WHERE a.title = 'Charcoal Lane'
-    OR a.title = 'The New Danger';
+SELECT albums.title, albums.release_date, albums.recording_date
+  FROM albums
+ WHERE albums.title = 'Charcoal Lane'
+    OR albums.title = 'The New Danger';
 ```
 
 #### Line spacing
@@ -240,11 +276,11 @@ UPDATE albums
 ```
 
 ```sql
-SELECT a.title,
-       a.release_date, a.recording_date, a.production_date -- grouped dates together
-  FROM albums AS a
- WHERE a.title = 'Charcoal Lane'
-    OR a.title = 'The New Danger';
+SELECT albums.title,
+       albums.release_date, albums.recording_date, albums.production_date -- grouped dates together
+  FROM albums
+ WHERE albums.title = 'Charcoal Lane'
+    OR albums.title = 'The New Danger';
 ```
 
 ### Indentation
@@ -254,19 +290,45 @@ are followed.
 
 #### Joins
 
-Joins should be indented to the other side of the river and grouped with a new
-line where necessary.
+In most cases, joins should follow the perscribed spacing and key word alignment.
+However, in some cases it may make sense to indent multiple joins to the righthand side
+of the river. The join key words and any key words related to the join clause should
+then follow the same 'river' spacing with root key words aligned to the join root keyword.
 
 ```sql
-SELECT r.last_name
-  FROM riders AS r
-       INNER JOIN bikes AS b
-       ON r.bike_vin_num = b.vin_num
-          AND b.engine_tally > 2
+/* Good */
+SELECT riders.last_name
+  FROM riders
 
-       INNER JOIN crew AS c
-       ON r.crew_chief_last_name = c.last_name
-          AND c.chief = 'Y';
+ INNER JOIN bikes
+    ON riders.bike_vin_num = bikes.vin_num
+   AND bikes.engine_tally > 2
+
+  INNER JOIN crew
+     ON riders.crew_chief_last_name = crew.last_name
+    AND crew.chief = 'Y';
+
+/* Good */
+SELECT riders.last_name
+  FROM riders
+       INNER JOIN bikes
+          ON riders.bike_vin_num = bikes.vin_num
+         AND bikes.engine_tally > 2
+
+       INNER JOIN crew
+          ON riders.crew_chief_last_name = crew.last_name
+         AND crew.chief = 'Y';
+
+/* Bad */
+SELECT riders.last_name
+  FROM riders
+       INNER JOIN bikes
+       ON riders.bike_vin_num = bikes.vin_num
+       AND bikes.engine_tally > 2
+
+       INNER JOIN crew
+       ON riders.crew_chief_last_name = crew.last_name
+       AND crew.chief = 'Y';
 ```
 
 #### Subqueries
@@ -277,17 +339,31 @@ the closing parenthesis on a new line at the same character position as its
 opening partner—this is especially true where you have nested subqueries.
 
 ```sql
-SELECT r.last_name,
+/* Good */
+SELECT riders.last_name,
        (SELECT MAX(YEAR(championship_date))
-          FROM champions AS c
-         WHERE c.last_name = r.last_name
-           AND c.confirmed = 'Y') AS last_championship_year
-  FROM riders AS r
- WHERE r.last_name IN
-       (SELECT c.last_name
-          FROM champions AS c
+          FROM champions
+         WHERE champions.last_name = riders.last_name
+           AND champions.confirmed = 'Y') AS last_championship_year
+  FROM riders
+ WHERE riders.last_name IN
+       (SELECT champions.last_name
+          FROM champions
          WHERE YEAR(championship_date) > '2008'
-           AND c.confirmed = 'Y');
+           AND champions.confirmed = 'Y');
+
+/* bad */
+SELECT riders.last_name,
+(SELECT MAX(YEAR(championship_date))
+   FROM champions
+  WHERE champions.last_name = riders.last_name
+    AND champions.confirmed = 'Y') AS last_championship_year
+  FROM riders
+ WHERE riders.last_name IN
+(SELECT champions.last_name
+   FROM champions
+  WHERE YEAR(championship_date) > '2008'
+    AND champions.confirmed = 'Y');
 ```
 
 ### Preferred formalisms
@@ -305,7 +381,7 @@ SELECT r.last_name,
 SELECT CASE postcode
        WHEN 'BN1' THEN 'Brighton'
        WHEN 'EH1' THEN 'Edinburgh'
-       END AS city
+        END AS city
   FROM office_locations
  WHERE country = 'United Kingdom'
    AND opening_time BETWEEN 8 AND 9
