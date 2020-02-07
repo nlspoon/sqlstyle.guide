@@ -168,9 +168,6 @@ and understood easily from SQL code. Use the correct suffix where appropriate.
 Always use uppercase for the [reserved keywords][reserved-keywords]
 like `SELECT` and `WHERE`.
 
-It is best to avoid the abbreviated keywords and use the full length ones where
-available (prefer `ABSOLUTE` to `ABS`).
-
 Do not use database server specific keywords where an ANSI SQL keyword already
 exists performing the same function. This helps to make code more portable.
 
@@ -190,6 +187,7 @@ implementation detail. Rivers are [bad in typography][rivers], but helpful here.
 ```sql
 /* Good */
 (SELECT flora.species_name,
+        flora.observation_date,
         AVG(flora.height) AS average_height,
         AVG(flora.diameter) AS average_diameter
    FROM flora
@@ -201,6 +199,7 @@ implementation detail. Rivers are [bad in typography][rivers], but helpful here.
   UNION ALL
 
 (SELECT garden_flora.species_name,
+        garden_flora.observation_date,
         AVG(garden_flora.height) AS average_height,
         AVG(garden_flora.diameter) AS average_diameter
    FROM botanic_garden_flora AS garden_flora
@@ -242,7 +241,9 @@ Although not exhaustive always include spaces:
   comma or semicolon.
 
 ```sql
-SELECT albums.title, albums.release_date, albums.recording_date
+SELECT albums.title,
+       albums.release_date,
+       albums.recording_date
   FROM albums
  WHERE albums.title = 'Charcoal Lane'
     OR albums.title = 'The New Danger';
@@ -255,13 +256,35 @@ Always include newlines/vertical space:
 * before `AND` or `OR`
 * after semicolons to separate queries for easier reading
 * after each keyword definition
-* after a comma when separating multiple columns into logical groups
+* after each columns name in a `SELECT` clause. This simplifies code reviews and
+  make it easier to read which columns are being select and what aliases are used.
+  To indicate logical groupings, it is preferable to include a one-line comment
+  preceding the group.
 * to separate code into related sections, which helps to ease the readability of
   large chunks of code.
 
 Keeping all the keywords aligned to the righthand side and the values left aligned
 creates a uniform gap down the middle of query. It makes it much easier to scan
 the query definition over quickly too.
+
+```sql
+/* Good */
+SELECT albums.title,
+       -- Dates
+       albums.release_date,
+       albums.recording_date,
+       albums.production_date
+  FROM albums
+ WHERE albums.title = 'Charcoal Lane'
+    OR albums.title = 'The New Danger';
+
+/* Bad */
+SELECT albums.title,
+       albums.release_date, albums.recording_date, albums.production_date -- grouped dates together
+  FROM albums
+ WHERE albums.title = 'Charcoal Lane'
+    OR albums.title = 'The New Danger';
+```
 
 ```sql
 INSERT INTO albums (title, release_date, recording_date)
@@ -273,14 +296,6 @@ VALUES ('Charcoal Lane', '1990-01-01 01:01:01.00000', '1990-01-01 01:01:01.00000
 UPDATE albums
    SET release_date = '1990-01-01 01:01:01.00000'
  WHERE title = 'The New Danger';
-```
-
-```sql
-SELECT albums.title,
-       albums.release_date, albums.recording_date, albums.production_date -- grouped dates together
-  FROM albums
- WHERE albums.title = 'Charcoal Lane'
-    OR albums.title = 'The New Danger';
 ```
 
 ### Indentation
